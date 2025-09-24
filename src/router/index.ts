@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
 import UploadView from '../views/UploadView.vue'
 import ProcessView from '../views/ProcessView.vue'
 import ResultsView from '../views/ResultsView.vue'
@@ -10,8 +9,7 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: HomeView,
+      redirect: '/upload',
     },
     {
       path: '/upload',

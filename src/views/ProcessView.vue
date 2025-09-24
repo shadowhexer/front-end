@@ -1,5 +1,53 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { usePageStore } from '@/stores/page'
+
+const currentPage = usePageStore()
+const isProcessing = ref(false)
+const selectedImageIndex = ref(null)
+const selectedPreviewIndex = ref(0)
+const processedImages = ref([])
+
+// Processing settings
+  const processingSettings = ref({
+    blur: 0,
+    brightness: 0,
+    contrast: 0,
+    grayscale: false,
+    sepia: false,
+    invert: false
+  })
+
+  const applyProcessing = async () => {
+    isProcessing.value = true
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // In real app, you'd send to your Python backend here
+    // processedImages.value = uploadedImages.value.map(image => ({
+    //   ...image,
+    //   originalUrl: image.url,
+    //   processedUrl: image.url, // In real app, this would be the processed image URL from backend
+    //   processed: true
+    // }))
+    
+    isProcessing.value = false
+    currentPage.nextPage()
+  }
+
+  const selectedImage = computed(() => {
+    return selectedImageIndex.value !== null ? processedImages.value[selectedImageIndex.value] : null
+})
+
+const selectedPreviewImage = computed(() => {
+    // return uploadedImages.value[selectedPreviewIndex.value]
+})
+
+</script>
+
 <template>
-    <div v-if="currentStep === 1" class="space-y-6">
+    <div v-if="currentPage.page === 1" class="space-y-6">
         <div class="text-center mb-8">
             <h2 class="text-2xl font-bold text-gray-900 mb-2">Choose Processing Methods</h2>
             <p class="text-gray-600">Select the transformations and filters to apply</p>
@@ -64,7 +112,7 @@
                                     {{ image.name }}
                                 </option>
                             </select>
-                            <button @click="currentStep = 2" class="text-green-600 hover:text-green-700 font-medium">
+                            <button @click="currentPage.nextPage" class="text-green-600 hover:text-green-700 font-medium">
                                 View All Results →
                             </button>
                         </div>
