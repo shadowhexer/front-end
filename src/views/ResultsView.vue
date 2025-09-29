@@ -1,3 +1,7 @@
+<script setup lang="ts">
+// @ts-nocheck
+</script>
+
 <template>
     <div v-if="currentStep === 2" class="space-y-6">
         <div class="flex justify-between items-center">

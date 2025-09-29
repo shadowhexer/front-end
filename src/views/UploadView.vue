@@ -2,10 +2,11 @@
 import Preview from "../components/UploadPreview.vue"
 import { ref, reactive } from 'vue'
 import { usePageStore } from '@/stores/page';
+import { useFetchStore } from "@/stores/fetch";
 
 const currentPage = usePageStore()
+const fetchStore = useFetchStore()
 
-const uploadedImages = reactive<Array<{ name: string; url: string | ArrayBuffer | null; file: File }>>([]);
 const isDragging = ref(false)
 
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -41,13 +42,12 @@ const processFiles = reactive({
 
                 // When the file is loaded
                 reader.onload = (e) => {
-                    const base64Image = reader.result as string;
+                    const dataUrl = e.target && (e.target as FileReader).result;
 
                     // Update the image URL to show it on the card
-                    uploadedImages.push({
+                    fetchStore.uploadedImages.push({
                         name: file.name,
-                        url: e.target && (e.target as FileReader).result,
-                        file: file
+                        url: dataUrl
                     })
 
                 };
@@ -58,7 +58,7 @@ const processFiles = reactive({
 });
 
 const removeImage = (index: number) => {
-    uploadedImages.splice(index, 1)
+    fetchStore.uploadedImages.splice(index, 1)
 }
 </script>
 
@@ -89,6 +89,6 @@ const removeImage = (index: number) => {
             </button>
         </div>
         <!-- Uploaded Images Preview -->
-        <Preview :uploaded-images="uploadedImages" :remove-image="removeImage" />
+        <Preview :remove-image="removeImage" />
     </div>
 </template>

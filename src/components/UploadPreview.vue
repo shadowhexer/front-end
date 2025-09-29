@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import router from '@/router';
 import { usePageStore } from '@/stores/page';
+import { useFetchStore } from "@/stores/fetch";
 
 const currentPage = usePageStore()
+const fetchStore = useFetchStore()
+const uploadedImages = fetchStore.uploadedImages
 
 defineProps<{
-    uploadedImages: Array<{ name: string; url: string | ArrayBuffer | null; file: File }>
     removeImage: (index: number) => void
 }>();
 
 const next = ()=>{
+    fetchStore.fileUpload()
     currentPage.nextPage()
     router.push('/process')
 }
@@ -18,7 +21,7 @@ const next = ()=>{
 
 <template>
     <div v-if="uploadedImages && uploadedImages.length > 0" class="mt-8">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">Uploaded Images ({{ uploadedImages ? uploadedImages.length : 0 }})</h3>
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Uploaded Images ({{uploadedImages ? uploadedImages.length : 0 }})</h3>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6">
             <div v-for="(image, index) in uploadedImages" :key="index" class="relative group">
                 <img :src="typeof image.url === 'string' ? image.url : undefined" :alt="image.name" class="w-full h-24 object-cover rounded-lg">

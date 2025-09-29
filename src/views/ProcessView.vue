@@ -1,49 +1,126 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted, capitalize, watch } from 'vue'
 import { usePageStore } from '@/stores/page'
+import { useFetchStore } from "@/stores/fetch";
 
 const currentPage = usePageStore()
+const fetchStore = useFetchStore()
+const previewImages = fetchStore.previewImages
+let cleanup: (() => void) | undefined
 const isProcessing = ref(false)
-const selectedImageIndex = ref(null)
 const selectedPreviewIndex = ref(0)
-const processedImages = ref([])
-
 // Processing settings
-  const processingSettings = ref({
-    blur: 0,
+const processingSettings = reactive({
     brightness: 0,
     contrast: 0,
-    grayscale: false,
-    sepia: false,
-    invert: false
-  })
+    saturation: 0,
+    hue: 0,
+    blur: 0,
+    sepia: 0,
+    grayscale: 0,
+    sharpen: {
+        amount: 0,
+        threshold: 0
+    },
+});
+// Infer the keys from the processingSettings object
+type ProcessName = keyof typeof processingSettings;
+const processNames = reactive<ProcessName[]>(
+    [
+        'brightness',
+        'contrast',
+        'saturation',
+        'hue',
+        'blur',
+        'sepia',
+        'grayscale',
+        'sharpen',
+    ]
+)
 
-  const applyProcessing = async () => {
-    isProcessing.value = true
-    
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    // In real app, you'd send to your Python backend here
-    // processedImages.value = uploadedImages.value.map(image => ({
-    //   ...image,
-    //   originalUrl: image.url,
-    //   processedUrl: image.url, // In real app, this would be the processed image URL from backend
-    //   processed: true
-    // }))
-    
-    isProcessing.value = false
-    currentPage.nextPage()
-  }
+const applyProcessing = (() => {
+    let timer: number | undefined;
+    let listener = false;
 
-  const selectedImage = computed(() => {
-    return selectedImageIndex.value !== null ? processedImages.value[selectedImageIndex.value] : null
-})
+    function preview(event: any) {
+        isProcessing.value = true;
+        clearTimeout(timer);
+        timer = window.setTimeout(() => {
+            PYTHON.run('adjustImage', 'preview', {
+                filename: selectedPreviewImage.value?.name,
+                filters: processingSettings,
+            });
+        }, 300);
+    }
+
+    function final(event: any) {
+        isProcessing.value = true;
+        clearTimeout(timer);
+        timer = window.setTimeout(() => {
+            PYTHON.run('adjustImage', 'final', {
+                filename: selectedPreviewImage.value?.name,
+                filters: processingSettings,
+            });
+        }, 300);
+
+
+    }
+
+    function forward() {
+        if (listener) return;
+        listener = true;
+
+        const handler = (e: any) => {
+            try {
+                const payload = (e && e.detail) ? e.detail : e;
+                const items = payload?.data ?? payload;
+
+                if (!items) return;
+                if (items.status === false) {
+                    Neutralino.events.on('debugLog', (f: any) => {
+                        console.warn("PYTHON DEBUG:", JSON.stringify((f && f.detail) ? f.detail : f))
+                    })
+
+                    console.warn("Received an error from imageAdjusted event:", items.message);
+                    return;
+                }
+
+                // Update only if this is the currently selected image
+                const current = previewImages[selectedPreviewIndex.value];
+                if (current?.name === items.filename) {
+                    current.url = items.dataUrl;
+                    if (current.filters) {
+                        Object.assign(processingSettings, current.filters);
+                        console.log("Updated filters:", current.filters);
+                    }
+                    isProcessing.value = false;
+                }
+            } catch (error) {
+                console.error("Error handling imageAdjusted event:", error);
+            }
+        };
+
+        Neutralino.events.on('imageAdjusted', handler);
+
+        return () => {
+            Neutralino.events.off('imageAdjusted', handler);
+            listener = false;
+        };
+    }
+
+    // Attach listener once
+    forward();
+
+    return { preview, final };
+})();
+
+
+onMounted(() => { cleanup = fetchStore.retrieveImages() })
+onUnmounted(() => { fetchStore.retrieveImages() })
 
 const selectedPreviewImage = computed(() => {
-    // return uploadedImages.value[selectedPreviewIndex.value]
+    return previewImages[selectedPreviewIndex.value] ?? null
 })
-
 </script>
 
 <template>
@@ -59,19 +136,15 @@ const selectedPreviewImage = computed(() => {
                 <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Filters</h3>
                     <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Blur</label>
-                            <input v-model="processingSettings.blur" type="range" min="0" max="10" class="w-full">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Brightness</label>
-                            <input v-model="processingSettings.brightness" type="range" min="-100" max="100"
-                                class="w-full">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Contrast</label>
-                            <input v-model="processingSettings.contrast" type="range" min="-100" max="100"
-                                class="w-full">
+                        <div v-for="(process, index) in processNames" :key="index">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">{{ capitalize(process)
+                                }}</label>
+                            <input v-if="process === 'sharpen'" v-model="processingSettings.sharpen.amount"
+                                @input="applyProcessing.preview" @change="applyProcessing.final" type="range" min="0"
+                                max="255" class="w-full">
+                            <input v-else v-model="processingSettings[process]" @input="applyProcessing.preview"
+                                @change="applyProcessing.final" type="range" min="0"
+                                :max="process === 'grayscale' ? 1 : 255" class="w-full">
                         </div>
                     </div>
                 </div>
@@ -79,7 +152,7 @@ const selectedPreviewImage = computed(() => {
                 <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Effects</h3>
                     <div class="space-y-3">
-                        <label class="flex items-center">
+                        <!-- <label class="flex items-center">
                             <input v-model="processingSettings.grayscale" type="checkbox"
                                 class="rounded border-gray-300">
                             <span class="ml-2 text-sm text-gray-700">Grayscale</span>
@@ -91,11 +164,11 @@ const selectedPreviewImage = computed(() => {
                         <label class="flex items-center">
                             <input v-model="processingSettings.invert" type="checkbox" class="rounded border-gray-300">
                             <span class="ml-2 text-sm text-gray-700">Invert Colors</span>
-                        </label>
+                        </label> -->
                     </div>
                 </div>
 
-                <button @click="applyProcessing" :disabled="isProcessing"
+                <button @click="currentPage.nextPage" :disabled="isProcessing"
                     class="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-3 rounded-lg font-medium transition-colors">
                     {{ isProcessing ? 'Processing...' : 'Apply to All Images' }}
                 </button>
@@ -108,16 +181,19 @@ const selectedPreviewImage = computed(() => {
                     <div v-if="selectedPreviewImage" class="space-y-4">
                         <div class="flex justify-between items-center">
                             <select v-model="selectedPreviewIndex" class="border border-gray-300 rounded-lg px-3 py-2">
-                                <option v-for="(image, index) in uploadedImages" :key="index" :value="index">
+                                <option v-for="(image, index) in previewImages" :key="index" :value="index">
                                     {{ image.name }}
                                 </option>
                             </select>
-                            <button @click="currentPage.nextPage" class="text-green-600 hover:text-green-700 font-medium">
+                            <button @click="currentPage.nextPage"
+                                class="text-green-600 hover:text-green-700 font-medium">
                                 View All Results →
                             </button>
                         </div>
                         <div class="relative bg-gray-100 rounded-lg overflow-hidden" style="height: 400px;">
-                            <img :src="selectedPreviewImage.url" alt="Preview" class="w-full h-full object-contain">
+                            <img :src="(selectedPreviewImage && (typeof selectedPreviewImage?.url === 'string')) ? selectedPreviewImage.url : undefined"
+                                :alt="(selectedPreviewImage && selectedPreviewImage.name) ? selectedPreviewImage.name : 'Preview'"
+                                class="w-full h-full object-contain">
                         </div>
                     </div>
                 </div>

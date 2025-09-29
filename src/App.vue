@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import Header from '@/components/Header.vue'
-import UploadView from './UploadView.vue'
-import ProcessView from './ProcessView.vue'
-import ResultsView from './ResultsView.vue'
-import CompareView from './CompareView.vue'
 import { usePageStore } from '@/stores/page'
 
 const currentPage = usePageStore()

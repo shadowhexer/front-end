@@ -21,16 +21,16 @@ const router = createRouter({
       name: 'process',
       component: ProcessView,
     },
-    {
-      path: '/results',
-      name: 'results',
-      component: ResultsView,
-    },
-    {
-      path: '/compare',
-      name: 'compare',
-      component: CompareView,
-    }
+    // {
+    //   path: '/results',
+    //   name: 'results',
+    //   component: ResultsView,
+    // },
+    // {
+    //   path: '/compare',
+    //   name: 'compare',
+    //   component: CompareView,
+    // }
   ],
 })
 
