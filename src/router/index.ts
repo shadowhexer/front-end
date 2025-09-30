@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import UploadView from '../views/UploadView.vue'
 import ProcessView from '../views/ProcessView.vue'
 import ResultsView from '../views/ResultsView.vue'
-import CompareView from '../views/CompareView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -21,16 +20,11 @@ const router = createRouter({
       name: 'process',
       component: ProcessView,
     },
-    // {
-    //   path: '/results',
-    //   name: 'results',
-    //   component: ResultsView,
-    // },
-    // {
-    //   path: '/compare',
-    //   name: 'compare',
-    //   component: CompareView,
-    // }
+    {
+      path: '/results',
+      name: 'results',
+      component: ResultsView,
+    }
   ],
 })
 

@@ -6,7 +6,7 @@ import { usePageStore } from '@/stores/page'
 const currentPage = usePageStore()
 const processedImages = ref([])
 
-const steps = ['Upload', 'Process', 'Results', 'Compare']
+const steps = ['Upload', 'Process', 'Results']
 
 const exportImages = () => {
     // In real app, export all processed images

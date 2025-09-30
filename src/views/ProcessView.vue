@@ -2,13 +2,17 @@
 import { ref, computed, reactive, onMounted, onUnmounted, capitalize, watch } from 'vue'
 import { usePageStore } from '@/stores/page'
 import { useFetchStore } from "@/stores/fetch";
+import router from '@/router';
 
 const currentPage = usePageStore()
 const fetchStore = useFetchStore()
 const previewImages = fetchStore.previewImages
-let cleanup: (() => void) | undefined
+const uploadedImages = fetchStore.uploadedImages
 const isProcessing = ref(false)
 const selectedPreviewIndex = ref(0)
+const isDragging = ref(false)
+const sliderPosition = ref(50)
+let cleanup: (() => void) | undefined
 // Processing settings
 const processingSettings = reactive({
     brightness: 0,
@@ -42,7 +46,18 @@ const applyProcessing = (() => {
     let timer: number | undefined;
     let listener = false;
 
-    function preview(event: any) {
+    function cached() {
+        isProcessing.value = true;
+        clearTimeout(timer);
+        timer = window.setTimeout(() => {
+            PYTHON.run('adjustImage', 'cached', {
+                filename: selectedPreviewImage.value?.name,
+                filters: processingSettings,
+            });
+        }, 50);
+    }
+
+    function preview() {
         isProcessing.value = true;
         clearTimeout(timer);
         timer = window.setTimeout(() => {
@@ -53,17 +68,14 @@ const applyProcessing = (() => {
         }, 50);
     }
 
-    function final(event: any) {
-        isProcessing.value = true;
-        clearTimeout(timer);
-        timer = window.setTimeout(() => {
-            PYTHON.run('adjustImage', 'final', {
-                filename: selectedPreviewImage.value?.name,
-                filters: processingSettings,
-            });
-        }, 50);
-
-
+    async function final() {
+        try {
+            const result: any = await PYTHON.run('adjustImage', 'final', {});
+            return result; // some Neutralino versions give back a promise
+        } catch (err) {
+            console.error("Python call failed:", err);
+            return null; // or throw if you want to handle upstream
+        }
     }
 
     function forward() {
@@ -77,10 +89,6 @@ const applyProcessing = (() => {
 
                 if (!items) return;
                 if (items.status === false) {
-                    Neutralino.events.on('debugLog', (f: any) => {
-                        console.warn("PYTHON DEBUG:", JSON.stringify((f && f.detail) ? f.detail : f))
-                    })
-
                     console.warn("Received an error from imageAdjusted event:", items.message);
                     return;
                 }
@@ -111,7 +119,7 @@ const applyProcessing = (() => {
     // Attach listener once
     forward();
 
-    return { preview, final };
+    return { cached, preview, final };
 })();
 
 
@@ -121,6 +129,31 @@ onUnmounted(() => { fetchStore.retrieveImages() })
 const selectedPreviewImage = computed(() => {
     return previewImages[selectedPreviewIndex.value] ?? null
 })
+const selectedOriginalImage = computed(() => {
+    return uploadedImages[selectedPreviewIndex.value] ?? null
+})
+
+const startDragging = (e: any) => {
+    isDragging.value = true
+    updateSliderPosition(e)
+}
+
+const updateSliderPosition = (e: any) => {
+    if (!isDragging.value) return
+    const rect = e.currentTarget.closest('.relative').getBoundingClientRect()
+    const x = e.clientX - rect.left
+    sliderPosition.value = Math.max(0, Math.min(100, (x / rect.width) * 100))
+}
+
+const stopDragging = () => {
+    isDragging.value = false
+}
+
+const next = () => {
+    applyProcessing.final()
+    currentPage.nextPage()
+    router.push('/results')
+}
 </script>
 
 <template>
@@ -140,11 +173,10 @@ const selectedPreviewImage = computed(() => {
                             <label class="block text-sm font-medium text-gray-700 mb-2">{{ capitalize(process)
                                 }}</label>
                             <input v-if="process === 'sharpen'" v-model="processingSettings.sharpen.amount"
-                                @input="applyProcessing.preview" @change="applyProcessing.final" type="range" min="0"
+                                @input="applyProcessing.cached" @change="applyProcessing.preview" type="range" min="0"
                                 max="255" class="w-full">
-                            <input v-else v-model="processingSettings[process]" @input="applyProcessing.preview"
-                                @change="applyProcessing.final" type="range" min="0"
-                                max="255" class="w-full">
+                            <input v-else v-model="processingSettings[process]" @input="applyProcessing.cached"
+                                @change="applyProcessing.preview" type="range" min="0" max="255" class="w-full">
                         </div>
                     </div>
                 </div>
@@ -185,15 +217,34 @@ const selectedPreviewImage = computed(() => {
                                     {{ image.name }}
                                 </option>
                             </select>
-                            <button @click="currentPage.nextPage"
-                                class="text-green-600 hover:text-green-700 font-medium">
+                            <button @click="next()" class="text-green-600 hover:text-green-700 font-medium">
                                 View All Results →
                             </button>
                         </div>
-                        <div class="relative bg-gray-100 rounded-lg overflow-hidden" style="height: 400px;">
-                            <img :src="(selectedPreviewImage && (typeof selectedPreviewImage?.url === 'string')) ? selectedPreviewImage.url : undefined"
-                                :alt="(selectedPreviewImage && selectedPreviewImage.name) ? selectedPreviewImage.name : 'Preview'"
-                                class="w-full h-full object-contain">
+                        <div class="relative bg-gray-100 rounded-lg overflow-hidden" style="height: 500px;">
+                            <img :src="(selectedOriginalImage && (typeof selectedOriginalImage?.url === 'string')) ? selectedOriginalImage.url : undefined"
+                                alt="Original" class="absolute inset-0 w-full h-full object-contain">
+
+                            <div class="absolute inset-0 overflow-hidden"
+                                :style="{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }">
+                                <img :src="(selectedPreviewImage && (typeof selectedPreviewImage?.url === 'string')) ? selectedPreviewImage.url : undefined"
+                                    :alt="(selectedPreviewImage && selectedPreviewImage.name) ? selectedPreviewImage.name : 'Preview'"
+                                    class="w-full h-full object-contain">
+                            </div>
+
+                            <!-- Slider -->
+                            <div class="absolute top-0 bottom-0 w-1 bg-white shadow-lg cursor-ew-resize"
+                                :style="{ left: `${sliderPosition}%` }" @mousedown="startDragging">
+                                <div
+                                    class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path>
+                                    </svg>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </div>
