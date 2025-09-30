@@ -50,7 +50,7 @@ const applyProcessing = (() => {
                 filename: selectedPreviewImage.value?.name,
                 filters: processingSettings,
             });
-        }, 300);
+        }, 50);
     }
 
     function final(event: any) {
@@ -61,7 +61,7 @@ const applyProcessing = (() => {
                 filename: selectedPreviewImage.value?.name,
                 filters: processingSettings,
             });
-        }, 300);
+        }, 50);
 
 
     }
@@ -144,7 +144,7 @@ const selectedPreviewImage = computed(() => {
                                 max="255" class="w-full">
                             <input v-else v-model="processingSettings[process]" @input="applyProcessing.preview"
                                 @change="applyProcessing.final" type="range" min="0"
-                                :max="process === 'grayscale' ? 1 : 255" class="w-full">
+                                max="255" class="w-full">
                         </div>
                     </div>
                 </div>
