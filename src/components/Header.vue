@@ -11,7 +11,7 @@ const props = defineProps<{
 
 <template>
     <div class="w-full px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
+        <div class="flex justify-start px-15 items-center h-16">
             <div class="flex items-center space-x-3">
                 <div class="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -20,7 +20,7 @@ const props = defineProps<{
                         </path>
                     </svg>
                 </div>
-                <h1 class="text-xl font-semibold text-gray-900">ImageLab Pro</h1>
+                <h1 class="text-xl font-semibold text-gray-900 px-2">OpenCV Image Editor</h1>
             </div>
 
             <!-- Export Button - shown when images are processed -->

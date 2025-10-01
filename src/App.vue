@@ -23,12 +23,12 @@ const exportImages = () => {
 
         <!-- Progress Steps -->
         <div class="bg-white border-b">
-            <div class="w-full px-4 sm:px-6 lg:px-8 py-4">
-                <div class="flex items-center space-x-4">
+            <div class="w-full px-4 sm:px-6 lg:px-8 py-8">
+                <div class="flex items-center justify-evenly lg:px-[20rem]">
                     <div v-for="(step, index) in steps" :key="index" class="flex items-center">
                         <div class="flex items-center space-x-2">
                             <div :class="[
-                                'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
+                                `order-${index+1} w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium`,
                                 currentPage.page > index ? 'bg-green-600 text-white' :
                                     currentPage.page === index ? 'bg-green-100 text-green-600 border-2 border-green-600' :
                                         'bg-gray-200 text-gray-500'
@@ -36,7 +36,7 @@ const exportImages = () => {
                                 {{ index + 1 }}
                             </div>
                             <span :class="[
-                                'text-sm font-medium',
+                                'text-sm font-medium px-2',
                                 currentPage.page >= index ? 'text-gray-900' : 'text-gray-500'
                             ]">
                                 {{ step }}
