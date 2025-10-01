@@ -91,7 +91,7 @@ const removeImage = (index: number) => {
 
                 <input ref="fileInput" type="file" multiple accept="image/*" @change="handleFileSelect" class="hidden">
                 <button v-if="!isDragging" @click="fileInput && fileInput.click()"
-                    class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors">
+                    class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg cursor-pointer transition-colors">
                     Choose Files
                 </button>
             </div>

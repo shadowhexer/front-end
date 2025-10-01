@@ -32,7 +32,7 @@ const next = ()=>{
             </div>
         </div>
         <button @click="next"
-            class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium transition-colors">
+            class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium transition-colors cursor-pointer">
             Proceed to Processing →
         </button>
     </div>

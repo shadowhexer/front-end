@@ -4,6 +4,7 @@ import { usePageStore } from '@/stores/page'
 import { useFetchStore } from "@/stores/fetch";
 import { ImgComparisonSlider } from '@img-comparison-slider/vue';
 import router from '@/router';
+import { Palette, Sliders, Sparkles, ChevronDown } from 'lucide-vue-next'
 
 const currentPage = usePageStore()
 const fetchStore = useFetchStore()
@@ -14,6 +15,49 @@ const selectedPreviewIndex = ref(0)
 const isDragging = ref(false)
 const sliderPosition = ref(50)
 let cleanup: (() => void) | undefined
+
+// Imported consts
+const activePanel: any = ref(null)
+const currentFilters: any = ref({})
+const currentEffects: any = ref({})
+const showComparison = ref(false)
+// Editing options
+const filters = ['None', 'Grayscale', 'Sepia', 'Vintage', 'Cool', 'Warm', 'High Contrast']
+const effects = ['Blur', 'Sharpen', 'Vignette', 'Grain', 'Glow']
+
+const adjustments = reactive([
+    { name: 'Brightness', value: 100, min: 0, max: 200, step: 1, unit: '%' },
+    { name: 'Contrast', value: 100, min: 0, max: 200, step: 1, unit: '%' },
+    { name: 'Saturation', value: 100, min: 0, max: 200, step: 1, unit: '%' },
+    { name: 'Hue', value: 0, min: -180, max: 180, step: 1, unit: '°' },
+])
+
+const applyFilter = (filter: any) => {
+    currentFilters.value[selectedPreviewIndex.value] = filter
+}
+
+const toggleEffect = (effect: any) => {
+    if (!currentEffects.value[selectedPreviewIndex.value]) {
+        currentEffects.value[selectedPreviewIndex.value] = []
+    }
+    const effects = currentEffects.value[selectedPreviewIndex.value]
+    const index = effects.indexOf(effect)
+    if (index > -1) {
+        effects.splice(index, 1)
+    } else {
+        effects.push(effect)
+    }
+}
+
+const resetEdits = () => {
+    adjustments.forEach(adj => {
+        if (adj.name === 'Hue') adj.value = 0
+        else adj.value = 100
+    })
+    currentFilters.value[selectedPreviewIndex.value] = 'None'
+    currentEffects.value[selectedPreviewIndex.value] = []
+}
+
 // Processing settings
 const processingSettings = reactive({
     brightness: 0,
@@ -158,87 +202,178 @@ const next = () => {
 </script>
 
 <template>
-    <div v-if="currentPage.page === 1" class="space-y-6">
-        <div class="text-center mb-8">
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Choose Processing Methods</h2>
-            <p class="text-gray-600">Select the transformations and filters to apply</p>
-        </div>
+    <div v-if="currentPage.page === 1" class="flex flex-row justify-evenly px-[15rem]">
+        <!-- Sidebar Controls -->
+        <aside
+            class="col-span-3 rounded-lg bg-white border border-solid shadow-md shadow-green-100 basis-xs px-6 py-5 h-fit">
+            <h3 class="text-lg font-bold text-gray-900 py-2 ">Editing Tools</h3>
 
-        <div class="grid lg:grid-cols-3 gap-6">
-            <!-- Processing Controls -->
-            <div class="lg:col-span-1 space-y-4">
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Filters</h3>
-                    <div class="space-y-4">
-                        <div v-for="(process, index) in processNames" :key="index">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">{{ capitalize(process)
-                            }}</label>
-                            <input v-if="process === 'sharpen'" v-model="processingSettings.sharpen.amount"
-                                @input="applyProcessing.cached" @change="applyProcessing.preview" type="range" min="0"
-                                max="255" class="w-full">
-                            <input v-else v-model="processingSettings[process]" @input="applyProcessing.cached"
-                                @change="applyProcessing.preview" type="range" min="0" max="255" class="w-full">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Effects</h3>
-                    <div class="space-y-3">
-                        <!-- <label class="flex items-center">
-                            <input v-model="processingSettings.grayscale" type="checkbox"
-                                class="rounded border-gray-300">
-                            <span class="ml-2 text-sm text-gray-700">Grayscale</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input v-model="processingSettings.sepia" type="checkbox" class="rounded border-gray-300">
-                            <span class="ml-2 text-sm text-gray-700">Sepia</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input v-model="processingSettings.invert" type="checkbox" class="rounded border-gray-300">
-                            <span class="ml-2 text-sm text-gray-700">Invert Colors</span>
-                        </label> -->
-                    </div>
-                </div>
-
-                <button @click="currentPage.nextPage" :disabled="isProcessing"
-                    class="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-3 rounded-lg font-medium transition-colors">
-                    {{ isProcessing ? 'Processing...' : 'Apply to All Images' }}
-                </button>
+            <!-- Image Selector for Batch -->
+            <div class="mb-6">
+                <label class="text-sm font-medium mb-2 text-gray-600">Current Image</label>
+                <select v-model="selectedPreviewIndex"
+                    class="w-full px-3 py-2 bg-gray-200 hover:bg-gray-300 cursor-pointer rounded-lg text-gray-900">
+                    <option v-for="(img, index) in uploadedImages" :key="index" :value="index" class="cursor-pointer">
+                        Image {{ index + 1 }}
+                    </option>
+                </select>
             </div>
 
-            <!-- Preview Area -->
-            <div class="lg:col-span-2">
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Preview</h3>
-                    <div v-if="selectedPreviewImage" class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <select v-model="selectedPreviewIndex" class="border border-gray-300 rounded-lg px-3 py-2">
-                                <option v-for="(image, index) in previewImages" :key="index" :value="index">
-                                    {{ image.name }}
-                                </option>
-                            </select>
-                            <button @click="next()" class="text-green-600 hover:text-green-700 font-medium">
-                                View All Results →
-                            </button>
-                        </div>
-                        <div class="relative bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center"
-                            style="height: 500px;">
-                            <ImgComparisonSlider class="max-w-full max-h-full" style="--default-handle-width: 100px;">
-                                <img slot="first"
-                                    :src="(selectedOriginalImage && typeof selectedOriginalImage?.url === 'string') ? selectedOriginalImage.url : undefined"
-                                    alt="Original" class="object-contain m-auto"  style="height: 500px;"/>
-
-                                <img slot="second"
-                                    :src="(selectedPreviewImage && typeof selectedPreviewImage?.url === 'string') ? selectedPreviewImage.url : undefined"
-                                    :alt="(selectedPreviewImage && selectedPreviewImage.name) ? selectedPreviewImage.name : 'Preview'"
-                                    class=" object-contain mx-auto" style="height: 500px;" />
-                            </ImgComparisonSlider>
-                        </div>
-
+            <!-- Filters -->
+            <div class="py-6">
+                <button @click="activePanel = activePanel === 'filters' ? null : 'filters'"
+                    class="w-full flex items-center justify-between px-4 py-3 bg-gray-100 rounded-lg text-gray-900 hover:bg-gray-200 transition-colors cursor-pointer">
+                    <div class="flex items-center gap-2">
+                        <Palette class="w-5 h-5" />
+                        <span class="font-medium">Filters</span>
                     </div>
+                    <ChevronDown :class="['w-4 h-4 transition-transform', activePanel === 'filters' && 'rotate-180']" />
+                </button>
+
+                <div v-if="activePanel === 'filters'" class="mt-2 space-y-2">
+                    <button v-for="filter in filters" :key="filter" @click="applyFilter(filter)" :class="[
+                        'w-full px-4 py-2 text-left rounded-lg transition-colors text-sm text-gray-900 hover:bg-gray-200 cursor-pointer',
+                        currentFilters[selectedPreviewIndex] === filter
+                            ? 'bg-gray-200 text-primary-foreground'
+                            : 'bg-background'
+                    ]">
+                        {{ filter }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Adjustments -->
+            <div>
+                <button @click="activePanel = activePanel === 'adjustments' ? null : 'adjustments'"
+                    class="w-full flex items-center justify-between px-4 py-3 bg-gray-100 rounded-lg text-gray-900 hover:bg-gray-200 cursor-pointer transition-colors">
+                    <div class="flex items-center gap-2">
+                        <Sliders class="w-5 h-5" />
+                        <span class="font-medium">Adjustments</span>
+                    </div>
+                    <ChevronDown
+                        :class="['w-4 h-4 transition-transform', activePanel === 'adjustments' && 'rotate-180']" />
+                </button>
+
+                <div v-if="activePanel === 'adjustments'" class="pt-3 space-y-4">
+                    <div v-for="adjustment in adjustments" :key="adjustment.name">
+                        <label class="text-sm font-medium mb-1 block text-gray-900">
+                            {{ adjustment.name }}
+                        </label>
+                        <input type="range" :min="adjustment.min" :max="adjustment.max" :step="adjustment.step"
+                            v-model="adjustment.value" class="w-full accent-primary" color="green" />
+                        <div class="text-xs text-gray-600 text-right mt-1">
+                            {{ adjustment.value }}{{ adjustment.unit }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Effects -->
+            <div class="py-6">
+                <button @click="activePanel = activePanel === 'effects' ? null : 'effects'"
+                    class="w-full flex items-center justify-between px-4 py-3 bg-gray-100 rounded-lg text-gray-900 hover:bg-gray-200 cursor-pointer transition-colors">
+                    <div class="flex items-center gap-2">
+                        <Sparkles class="w-5 h-5" />
+                        <span class="font-medium">Effects</span>
+                    </div>
+                    <ChevronDown :class="['w-4 h-4 transition-transform', activePanel === 'effects' && 'rotate-180']" />
+                </button>
+
+                <div v-if="activePanel === 'effects'" class="mt-2 space-y-2">
+                    <button v-for="effect in effects" :key="effect" @click="toggleEffect(effect)" :class="[
+                        'w-full px-4 py-2 text-left rounded-lg transition-colors text-sm text-gray-900 hover:bg-gray-200 cursor-pointer',
+                        currentEffects[selectedPreviewIndex]?.includes(effect)
+                            ? 'bg-gray-200 text-accent-foreground'
+                            : 'bg-background'
+                    ]">
+                        {{ effect }}
+                    </button>
+                </div>
+            </div>
+
+            <button @click="resetEdits"
+                class="w-full px-4 py-2 bg-destructive/10 text-destructive bg-red-50 rounded-lg text-red-900 hover:bg-red-100 cursor-pointer transition-colors font-medium">
+                Reset All
+            </button>
+        </aside>
+
+        <!-- Main Editing Area -->
+        <div class="col-span-9 max-w-9/10 max-h-3/4 basis-250">
+            <div class="bg-white rounded-lg border border-solid shadow-md shadow-green-100 p-6">
+
+                <div class="flex items-center justify-between pb-4">
+                    <h3 class="font-bold text-gray-900">Preview</h3>
+                    <div class="flex items-center gap-2">
+                        <button @click="showComparison = !showComparison" :class="[
+                            'px-4 py-2 rounded-lg font-medium transition-colors text-sm cursor-pointer',
+                            showComparison
+                                ? 'bg-green-700 text-green-50 hover:bg-green-800'
+                                : 'bg-green-50 text-green-700 hover:bg-green-200'
+                        ]">
+                            {{ showComparison ? 'Hide' : 'Show' }} Comparison
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Image Comparison Slider -->
+                <div class="container relative rounded-lg bg-gray-100 overflow-hidden">
+                    <div v-if="!showComparison" class="w-full h-full flex items-center justify-center">
+                        <img :src="(selectedPreviewImage && typeof selectedPreviewImage?.url === 'string') ? selectedPreviewImage.url : undefined"
+                            alt="Edited image" class="max-w-full max-h-full object-contain " style="height: 500px;" />
+                    </div>
+
+                    <!-- Before/After Comparison -->
+                    <div v-else class="relative w-full h-full flex items-center justify-center" style="height: 500px;">
+                        <!-- After Image (Full) -->
+                        <ImgComparisonSlider class="max-w-full max-h-full" style="--default-handle-width: 100px;">
+                            <img slot="first"
+                                :src="(selectedOriginalImage && typeof selectedOriginalImage?.url === 'string') ? selectedOriginalImage.url : undefined"
+                                alt="Original" class="object-contain m-auto" style="height: 500px;" />
+
+                            <img slot="second"
+                                :src="(selectedPreviewImage && typeof selectedPreviewImage?.url === 'string') ? selectedPreviewImage.url : undefined"
+                                :alt="(selectedPreviewImage && selectedPreviewImage.name) ? selectedPreviewImage.name : 'Preview'"
+                                class=" object-contain mx-auto" style="height: 500px;" />
+                        </ImgComparisonSlider>
+                    </div>
+                </div>
+                <div class="flex justify-between pt-6">
+                    <button @click="() => { currentPage.prevPage; router.push('/upload') }"
+                        class="px-6 py-2 bg-green-50 text-green-700 rounded-lg font-medium hover:bg-green-200 cursor-pointer transition-colors">
+                        Back to Upload
+                    </button>
+                    <button @click="() => { currentPage.nextPage; router.push('/result') }"
+                        class="px-6 py-2 bg-green-700 text-green-50 rounded-lg font-medium hover:opacity-90 cursor-pointer transition-opacity">
+                        Continue to Export
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 </template>
+<style scoped>
+input[type="range"] {
+    height: 6px;
+    border-radius: 3px;
+    background: oklch(0.922 0 0);
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: oklch(0.646 0.222 41.116);
+    cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: oklch(0.646 0.222 41.116);
+    cursor: pointer;
+    border: none;
+}
+</style>
