@@ -14,6 +14,7 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "@img-comparison-slider/vue": "^8.0.0",
     "@tailwindcss/vite": "^4.1.13",
     "jspdf": "^3.0.3",
     "pinia": "^3.0.3",

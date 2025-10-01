@@ -2,6 +2,7 @@
 import { ref, computed, reactive, onMounted, onUnmounted, capitalize, watch } from 'vue'
 import { usePageStore } from '@/stores/page'
 import { useFetchStore } from "@/stores/fetch";
+import { ImgComparisonSlider } from '@img-comparison-slider/vue';
 import router from '@/router';
 
 const currentPage = usePageStore()
@@ -171,7 +172,7 @@ const next = () => {
                     <div class="space-y-4">
                         <div v-for="(process, index) in processNames" :key="index">
                             <label class="block text-sm font-medium text-gray-700 mb-2">{{ capitalize(process)
-                                }}</label>
+                            }}</label>
                             <input v-if="process === 'sharpen'" v-model="processingSettings.sharpen.amount"
                                 @input="applyProcessing.cached" @change="applyProcessing.preview" type="range" min="0"
                                 max="255" class="w-full">
@@ -221,31 +222,20 @@ const next = () => {
                                 View All Results →
                             </button>
                         </div>
-                        <div class="relative bg-gray-100 rounded-lg overflow-hidden" style="height: 500px;">
-                            <img :src="(selectedOriginalImage && (typeof selectedOriginalImage?.url === 'string')) ? selectedOriginalImage.url : undefined"
-                                alt="Original" class="absolute inset-0 w-full h-full object-contain">
+                        <div class="relative bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center"
+                            style="height: 500px;">
+                            <ImgComparisonSlider class="max-w-full max-h-full" style="--default-handle-width: 100px;">
+                                <img slot="first"
+                                    :src="(selectedOriginalImage && typeof selectedOriginalImage?.url === 'string') ? selectedOriginalImage.url : undefined"
+                                    alt="Original" class="object-contain m-auto"  style="height: 500px;"/>
 
-                            <div class="absolute inset-0 overflow-hidden"
-                                :style="{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }">
-                                <img :src="(selectedPreviewImage && (typeof selectedPreviewImage?.url === 'string')) ? selectedPreviewImage.url : undefined"
+                                <img slot="second"
+                                    :src="(selectedPreviewImage && typeof selectedPreviewImage?.url === 'string') ? selectedPreviewImage.url : undefined"
                                     :alt="(selectedPreviewImage && selectedPreviewImage.name) ? selectedPreviewImage.name : 'Preview'"
-                                    class="w-full h-full object-contain">
-                            </div>
-
-                            <!-- Slider -->
-                            <div class="absolute top-0 bottom-0 w-1 bg-white shadow-lg cursor-ew-resize"
-                                :style="{ left: `${sliderPosition}%` }" @mousedown="startDragging">
-                                <div
-                                    class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center">
-                                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path>
-                                    </svg>
-                                </div>
-                            </div>
-
+                                    class=" object-contain mx-auto" style="height: 500px;" />
+                            </ImgComparisonSlider>
                         </div>
+
                     </div>
                 </div>
             </div>

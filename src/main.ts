@@ -1,4 +1,5 @@
 import './assets/main.css'
+import 'img-comparison-slider/dist/styles.css'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
