@@ -1,20 +1,30 @@
 import { reactive, ref } from 'vue'
 import { defineStore } from 'pinia'
 
-interface Sharpen {
-    amount: number;
-    threshold: number;
+interface Filters {
+    grayscale: boolean,
+    sepia: boolean,
+    cool: boolean,
+    warm: boolean
+}
+interface Adjustments {
+    brightness: number,
+    contrast: number,
+    saturation: number,
+    hue: number,
+}
+interface Effects {
+    blur: number,
+    sharpen: number,
+    grain: number,
+    vignette: number,
+    glow: number
 }
 
 interface PreviewFilters {
-    brightness: number;
-    contrast: number;
-    saturation: number;
-    hue: number;
-    blur: number;
-    sepia: number;
-    grayscale: number;
-    sharpen?: Sharpen;
+    filters?: Filters,
+    adjustments?: Adjustments,
+    effects?: Effects
 }
 
 interface PreviewItem {
@@ -23,18 +33,36 @@ interface PreviewItem {
     filters?: PreviewFilters;
 }
 
+const defaultFilters: PreviewFilters = {
+    filters: {
+        grayscale: false,
+        sepia: false,
+        cool: false,
+        warm: false
+    },
+    adjustments: {
+        brightness: 0,
+        contrast: 0,
+        saturation: 0,
+        hue: 0
+    },
+    effects: {
+        blur: 0,
+        sharpen: 0,
+        grain: 0,
+        vignette: 0,
+        glow: 0
+    }
+};
+
+
 export const useFetchStore = defineStore('fetch', () => {
-    const isLoading = ref(false)
-
-
+    let listener = false
     const uploadedImages = reactive<Array<{ 
         name: string; 
         url: string | ArrayBuffer | null 
     }>>([]);
-
     const previewImages = reactive<PreviewItem[]>([]);
-
-    let listener = false
 
     function fileUpload() {
         // dispatch to Python one image at a time
@@ -76,7 +104,8 @@ export const useFetchStore = defineStore('fetch', () => {
                 }
                     previewImages.push({
                         name: file.filename,
-                        url: file.dataUrl
+                        url: file.dataUrl,
+                        filters: JSON.parse(JSON.stringify(defaultFilters))
                     });
                 });
 
@@ -95,6 +124,18 @@ export const useFetchStore = defineStore('fetch', () => {
         }
     }
 
+    function resetPreviewFilters(index: number) {
+        if (previewImages[index]) {
+            previewImages[index].filters = JSON.parse(JSON.stringify(defaultFilters));
+        }
+    }
+
+    function updatePreviewFilters(index: number, newFilters: PreviewFilters) {
+        if (previewImages[index]) {
+            previewImages[index].filters = JSON.parse(JSON.stringify(newFilters));
+        }
+    }
+
     // Public API
-    return { isLoading, fileUpload, uploadedImages, previewImages, retrieveImages }
+    return { fileUpload, uploadedImages, previewImages, retrieveImages, resetPreviewFilters, updatePreviewFilters }
 })
