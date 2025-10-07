@@ -8,7 +8,6 @@ const props = defineProps<{
         url: string | ArrayBuffer | null
     } | null
 }>()
-const emit = defineEmits(['return'])
 const show = ref(false)
 
 function downloadImage() {
@@ -35,42 +34,22 @@ function downloadPDF() {
 </script>
 
 <template>
-    <div v-if="image" class="space-y-6">
-        <div class="flex justify-between items-center">
-            <div>
-                <h2 class="text-2xl font-bold text-gray-900">{{ image.name }}</h2>
-                <p class="text-gray-600">Compare original vs processed</p>
-            </div>
-            <div class="flex space-x-2">
-                <button @click="emit('return')"
-                    class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg">
-                    ← Back to Grid
-                </button>
-                <button @click="show = true" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
-                    Download
-                </button>
-                <Teleport to="body">
-                    <div v-if="show" class="modal">
-                        <button @click="downloadImage()"
-                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
-                            Download as Image
-                        </button>
-                        <button @click="downloadPDF()"
-                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
-                            Download as PDF
-                        </button>
-                        <button @click="show = false"
-                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
-                            Close
-                        </button>
-                    </div>
-                </Teleport>
-            </div>
-        </div>
-        <div class="bg-white rounded-lg shadow p-6">
+    <div v-if="image">
+        <div class="flex flex-col align-center bg-white rounded-lg">
             <div class="relative overflow-hidden rounded-lg" style="height: 500px;">
                 <img :src="(image && (typeof image?.url === 'string')) ? image.url : undefined" alt="Original"
-                    class="absolute inset-0 w-full h-full object-contain">
+                    class="w-full h-full object-contain py-10">
+            </div>
+            <div class="flex flex-col items-center gap-4 px-5 py-3 ">
+                <h2 class="align-self-center text-2xl font-bold text-gray-900">{{ image.name }}</h2>
+                <button @click="downloadImage()"
+                    class="align-self-center w-[10rem] py-2 bg-green-700 rounded-lg text-white hover:opacity-90 cursor-pointer transition-opacity font-medium">
+                    Download as Image
+                </button>
+                <button @click="downloadPDF()"
+                    class="align-self-center w-[10rem] py-2 bg-green-700 rounded-lg text-white hover:opacity-90 cursor-pointer transition-opacity font-medium">
+                    Download as PDF
+                </button>
             </div>
         </div>
     </div>

@@ -11,7 +11,6 @@ interface PreviewImage {
 const pageStore = usePageStore()
 const previewImages = reactive<PreviewImage[]>([]);
 const selectedPreviewIndex: any = ref(null)
-const preview = ref(false)
 
 const selectImage = (index: any) => {
   selectedPreviewIndex.value = selectedPreviewIndex.value === index ? null : index
@@ -71,16 +70,11 @@ const selectedPreviewImage = computed(() => {
         <h2 class="text-2xl font-bold text-gray-900">Processing Results</h2>
         <p class="text-gray-600">{{ previewImages.length }} images processed</p>
       </div>
-      <PreviewImage v-if="preview" :image="selectedPreviewImage" @return="preview = false" />
-      <button @click="preview = true" v-if="selectedPreviewImage"
-        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
-        View Selected Image
-      </button>
+
     </div>
 
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-      <div v-for="(image, index) in previewImages" :key="index"
-        @click="selectImage(index)"
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div v-for="(image, index) in previewImages" :key="index" @click="selectImage(index)"
         :class="['relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all',
           selectedPreviewIndex === index ? 'border-green-500 ring-2 ring-green-200' : 'border-gray-200 hover:border-gray-300']">
         <img :src="(image && (typeof image?.url === 'string')) ? image.url : undefined" :alt="image.name"
@@ -103,5 +97,7 @@ const selectedPreviewImage = computed(() => {
         </div>
       </div>
     </div>
+
+    <PreviewImage :image="selectedPreviewImage" />
   </div>
 </template>

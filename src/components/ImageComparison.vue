@@ -2,6 +2,9 @@
 import { useFetchStore } from '@/stores/fetch';
 import { computed, ref } from 'vue'
 import { ImgComparisonSlider } from '@img-comparison-slider/vue';
+import IconRedo from './icons/IconRedo.vue';
+import IconUndo from './icons/IconUndo.vue';
+
 const showComparison = ref(false)
 const fetchStore = useFetchStore()
 const uploadedImages = fetchStore.uploadedImages
@@ -10,6 +13,11 @@ const props = defineProps<{
     selectedPreviewImage: any,
     selectedPreviewIndex: number
 }>()
+
+defineEmits<{
+    (e: 'undo'): void,
+    (e: 'redo'): void
+}>()
 const selectedOriginalImage = computed(() => {
     return uploadedImages[props.selectedPreviewIndex] ?? null
 })
@@ -17,6 +25,16 @@ const selectedOriginalImage = computed(() => {
 <template>
     <div class="flex items-center justify-between pb-4">
         <h3 class="font-bold text-gray-900">Preview</h3>
+
+        <div class="flex flex-column items-center gap-5">
+            <button @click="$emit('undo')" class="hover:opacity-50 cursor-pointer">
+                <IconUndo />
+            </button>
+            <button @click="$emit('redo')" class="hover:opacity-50 cursor-pointer">
+                <IconRedo />
+            </button>
+        </div>
+
         <slot name="compare">
             <div class="flex items-center gap-2">
                 <button @click="showComparison = !showComparison" :class="[

@@ -53,15 +53,6 @@ const effects = reactive([
     { name: 'Glow' }
 ])
 
-const crop = {
-    crop: {
-        x: 0,
-        y: 0,
-        width: 0,
-        height: 0
-    }
-}
-
 const defaultFilters = {
     filters: {
         grayscale: false,
@@ -82,6 +73,12 @@ const defaultFilters = {
         vignette: 0,
         glow: 0
     },
+    crop: {
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0
+    }
 };
 
 
@@ -92,15 +89,14 @@ const applyProcessing = (() => {
     let timer: number | undefined;
     let listener = false;
 
-    function cached(mode: 'crop' | 'filter') {
+    function cached() {
         isProcessing.value = true;
         clearTimeout(timer);
         console.log("applyProcessing.cached() called — scheduling send of:", JSON.parse(JSON.stringify(processingSettings)));
         timer = window.setTimeout(() => {
             PYTHON.run('adjustImage', 'cached', {
                 filename: selectedPreviewImage.value?.name,
-                filters: mode === 'crop' ? crop : processingSettings,
-                mode: mode
+                filters: processingSettings
             });
         }, 50);
     }
@@ -116,6 +112,26 @@ const applyProcessing = (() => {
         }, 50);
     }
 
+    function undo() {
+        try {
+            const result: any = PYTHON.run('adjustImage', 'undo', {});
+            return result; // some Neutralino versions give back a promise
+        } catch (err) {
+            console.error("Python call failed:", err);
+            return null; // or throw if you want to handle upstream
+        }
+    }
+
+    function redo() {
+        try {
+            const result: any = PYTHON.run('adjustImage', 'redo', {});
+            return result; // some Neutralino versions give back a promise
+        } catch (err) {
+            console.error("Python call failed:", err);
+            return null; // or throw if you want to handle upstream
+        }
+    }
+
     async function final() {
         try {
             const result: any = await PYTHON.run('adjustImage', 'final', {});
@@ -126,9 +142,9 @@ const applyProcessing = (() => {
         }
     }
 
-    async function reset() {
+    function reset() {
         try {
-            const result: any = await PYTHON.run('adjustImage', 'reset', {});
+            const result: any = PYTHON.run('adjustImage', 'reset', {});
             return result; // some Neutralino versions give back a promise
         } catch (err) {
             console.error("Python call failed:", err);
@@ -186,7 +202,7 @@ const applyProcessing = (() => {
     // Attach listener once
     forward();
 
-    return { cached, preview, final, reset };
+    return { cached, preview, undo, redo, final, reset };
 })();
 
 
@@ -195,6 +211,7 @@ onUnmounted(() => { if (typeof cleanup === 'function') cleanup(); })
 
 let isSwitching = false;
 
+// Watching checkbox change
 watch(activeFilter, (newFilters) => {
     if (isSwitching) return;
 
@@ -212,7 +229,7 @@ watch(activeFilter, (newFilters) => {
         }
     }
     console.log("Active Filters: ", activeFilter.value)
-    applyProcessing.cached('filter');
+    applyProcessing.cached();
 }, { immediate: true });
 
 // Watching image change
@@ -310,7 +327,7 @@ const next = () => {
                     <!-- Adjustments Tab -->
                     <div v-else-if="currentTab === 'adjustments'">
                         <AdjustmentView :adjustments="adjustments" :processing-settings="processingSettings"
-                            @update="applyProcessing.cached('filter')" />
+                            @update="applyProcessing.cached()" />
                         <TabButtons @apply="currentTab = 'menu'; applyProcessing.preview();"
                             @cancel="currentTab = 'menu'" />
                     </div>
@@ -318,14 +335,14 @@ const next = () => {
                     <!--Effects-->
                     <div v-else-if="currentTab === 'effects'">
                         <EffectView :effects="effects" :processing-settings="processingSettings"
-                            @update="applyProcessing.cached('filter')" />
+                            @update="applyProcessing.cached()" />
                         <TabButtons @apply="currentTab = 'menu'; applyProcessing.preview();"
                             @cancel="currentTab = 'menu'" />
                     </div>
 
                     <!--Crop-->
                     <div v-else-if="currentTab === 'crop'">
-                        <CropComponent @apply="applyProcessing.cached('crop')" />
+                        <CropComponent @apply="applyProcessing.cached()" />
                         <TabButtons @apply="currentTab = 'menu'; applyProcessing.preview();"
                             @cancel="currentTab = 'menu'" />
                     </div>
@@ -339,21 +356,24 @@ const next = () => {
             <div class="bg-white rounded-lg border border-solid shadow-md shadow-green-100 p-6">
 
                 <ImageComparison :selected-preview-image="selectedPreviewImage"
-                    :selected-preview-index="selectedPreviewIndex">
+                    :selected-preview-index="selectedPreviewIndex"
+                    @undo="applyProcessing.undo()"
+                    @redo="applyProcessing.redo()"
+                    >
                     <template #compare>
                         <div v-if="currentTab === 'crop'" />
                     </template>
                     <template #preview>
                         <ImageCropping v-if="currentTab === 'crop'" :selected-preview-image="selectedPreviewImage.url"
-                            v-model:crop="crop.crop" />
+                            v-model:crop="processingSettings.crop" />
                     </template>
                 </ImageComparison>
                 <div v-if="currentTab === 'menu'" class="flex justify-between pt-6">
-                    <button @click="() => { currentPage.prevPage; router.push('/upload') }"
+                    <button @click="() => { currentPage.prevPage; router.push('/') }"
                         class="px-6 py-2 bg-green-50 text-green-700 rounded-lg font-medium hover:bg-green-200 cursor-pointer transition-colors">
                         Back to Upload
                     </button>
-                    <button @click="() => { currentPage.nextPage; router.push('/result') }"
+                    <button @click="next()"
                         class="px-6 py-2 bg-green-700 text-green-50 rounded-lg font-medium hover:opacity-90 cursor-pointer transition-opacity">
                         Continue to Export
                     </button>

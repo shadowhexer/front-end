@@ -21,10 +21,18 @@ interface Effects {
     glow: number
 }
 
+interface Crop {
+    x: number,
+    y: number,
+    width: number,
+    height: number
+}
+
 interface PreviewFilters {
     filters?: Filters,
     adjustments?: Adjustments,
-    effects?: Effects
+    effects?: Effects,
+    crop?: Crop
 }
 
 interface PreviewItem {
@@ -52,6 +60,12 @@ const defaultFilters: PreviewFilters = {
         grain: 0,
         vignette: 0,
         glow: 0
+    },
+    crop: {
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0
     }
 };
 

@@ -6,10 +6,10 @@ import { useFetchStore } from "@/stores/fetch";
 
 const currentPage = usePageStore()
 const fetchStore = useFetchStore()
-
 const isDragging = ref(false)
-
 const fileInput = ref<HTMLInputElement | null>(null)
+const fileError = ref('')
+const maxFileSizeMB: number = 5
 
 const handleDragOver = (event: DragEvent) => {
     isDragging.value = true;
@@ -20,18 +20,33 @@ const handleDragLeave = (event: DragEvent) => {
 };
 
 const handleDrop = (e: DragEvent) => {
+    const target = e.target as HTMLInputElement
     e.preventDefault()
     isDragging.value = false
     const files = e.dataTransfer ? Array.from(e.dataTransfer.files) : []
-    processFiles.onFileSelected(files)
+    handleFileSize(files, target)
 }
 
 
 const handleFileSelect = (e: Event) => {
     const target = e.target as HTMLInputElement
     const files = target.files ? Array.from(target.files) : []
-    processFiles.onFileSelected(files)
+    handleFileSize(files, target)
 }
+
+const handleFileSize = ((files: File[], target: HTMLInputElement) => {
+    if (!files.length) return
+
+    const tooLarge = files.find(file => (file.size / (1024 * 1024)) > maxFileSizeMB)
+
+    if (tooLarge) {
+        fileError.value = `File "${tooLarge.name}" exceeds ${maxFileSizeMB} MB`
+        target.value = '' // reset input field
+    } else {
+        fileError.value = ``
+        processFiles.onFileSelected(files)
+    }
+})
 
 const processFiles = reactive({
     triggerFileInput() {
@@ -44,7 +59,6 @@ const processFiles = reactive({
 
         files.forEach(file => {
 
-            // Optional: handle file upload logic here, like sending it to a server
             if (file.type.startsWith('image/')) {
                 const reader = new FileReader();
 
@@ -86,7 +100,7 @@ const removeImage = (index: number) => {
 
             <div v-if="isDragging == false">
                 <p class="text-lg font-medium text-gray-900 mb-2">Drag image here or click to browse</p>
-                <p class="text-gray-500 pb-5">Supports PNG, JPG, JPEG, WebP up to 10MB each
+                <p class="text-gray-500 pb-5">{{ `Supports PNG, JPG, JPEG, WebP up to ${maxFileSizeMB}MB each` }}
                 </p>
 
                 <input ref="fileInput" type="file" multiple accept="image/*" @change="handleFileSelect" class="hidden">
@@ -99,7 +113,7 @@ const removeImage = (index: number) => {
             <div v-else class="py-[2.7rem]">
                 <p class="text-lg font-medium text-gray-500 mb-2">Drop image here</p>
             </div>
-
+            <p v-if="fileError" style="color: red;">{{ fileError }}</p>
 
 
         </div>
