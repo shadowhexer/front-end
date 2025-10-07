@@ -2,7 +2,9 @@
 defineProps<{
     adjustments: any,
     processingSettings: any,
-    applyProcessing: void
+}>()
+defineEmits<{
+    (e: 'update'): void
 }>()
 </script>
 <template>
@@ -14,7 +16,7 @@ defineProps<{
             </label>
             <input type="range" :min="adjustment.min" :max="adjustment.max" :step="adjustment.step"
                 v-model.number="(processingSettings.adjustments[adjustment.name.toLowerCase()])"
-                @input="() => applyProcessing" class="w-full accent-primary" color="green" />
+                @input="$emit('update')" class="w-full accent-primary" color="green" />
             <div class="text-xs text-gray-600 text-right mt-1">
                 {{ processingSettings.adjustments[adjustment.name.toLowerCase()] }}{{
                     adjustment.unit }}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted, onUnmounted, capitalize, watch } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted, capitalize, watch, onWatcherCleanup } from 'vue'
 import { usePageStore } from '@/stores/page'
 import { useFetchStore } from "@/stores/fetch";
 import router from '@/router';
@@ -9,6 +9,8 @@ import AdjustmentView from '@/components/AdjustmentView.vue';
 import EffectView from '@/components/EffectView.vue';
 import TabButtons from '@/components/TabButtons.vue';
 import ImageComparison from '@/components/ImageComparison.vue';
+import ImageCropping from '@/components/ImageCropping.vue';
+import CropComponent from '@/components/CropComponent.vue';
 
 const currentPage = usePageStore()
 const fetchStore = useFetchStore()
@@ -17,11 +19,12 @@ const uploadedImages = fetchStore.uploadedImages
 const isProcessing = ref(false)
 const selectedPreviewIndex = ref(0)
 let cleanup: (() => void) | undefined
-const currentTab: any = ref<'menu' | 'filters' | 'adjustments' | 'effects'>('menu')
+const currentTab: any = ref<'menu' | 'filters' | 'adjustments' | 'effects' | 'crop'>('menu')
 const menu = [
     { key: 'filters', label: 'Filters', icon: Palette },
     { key: 'adjustments', label: 'Adjustments', icon: Palette },
     { key: 'effects', label: 'Effects', icon: Palette },
+    { key: 'crop', label: 'Crop', icon: Palette },
 ];
 const activeFilter = ref(['']);
 
@@ -50,6 +53,15 @@ const effects = reactive([
     { name: 'Glow' }
 ])
 
+const crop = {
+    crop: {
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0
+    }
+}
+
 const defaultFilters = {
     filters: {
         grayscale: false,
@@ -69,7 +81,7 @@ const defaultFilters = {
         grain: 0,
         vignette: 0,
         glow: 0
-    }
+    },
 };
 
 
@@ -80,14 +92,15 @@ const applyProcessing = (() => {
     let timer: number | undefined;
     let listener = false;
 
-    function cached() {
+    function cached(mode: 'crop' | 'filter') {
         isProcessing.value = true;
         clearTimeout(timer);
         console.log("applyProcessing.cached() called — scheduling send of:", JSON.parse(JSON.stringify(processingSettings)));
         timer = window.setTimeout(() => {
             PYTHON.run('adjustImage', 'cached', {
                 filename: selectedPreviewImage.value?.name,
-                filters: processingSettings,
+                filters: mode === 'crop' ? crop : processingSettings,
+                mode: mode
             });
         }, 50);
     }
@@ -199,8 +212,8 @@ watch(activeFilter, (newFilters) => {
         }
     }
     console.log("Active Filters: ", activeFilter.value)
-    applyProcessing.cached();
-}, { deep: true, immediate: true });
+    applyProcessing.cached('filter');
+}, { immediate: true });
 
 // Watching image change
 watch(selectedPreviewIndex, (newIndex) => {
@@ -287,24 +300,34 @@ const next = () => {
                     </div>
 
                     <!-- Filters Tab -->
-                    <div v-else-if="currentTab == 'filters'">
+                    <div v-else-if="currentTab === 'filters'">
                         <FilterView :filters="filters" v-model:active-filter="activeFilter" />
-                        <TabButtons @apply="currentTab = 'menu'; applyProcessing.preview();" @cancel="currentTab = 'menu'" />
+                        <TabButtons @apply="currentTab = 'menu'; applyProcessing.preview();"
+                            @cancel="currentTab = 'menu'" />
 
                     </div>
 
                     <!-- Adjustments Tab -->
-                    <div v-else-if="currentTab == 'adjustments'">
+                    <div v-else-if="currentTab === 'adjustments'">
                         <AdjustmentView :adjustments="adjustments" :processing-settings="processingSettings"
-                            :apply-processing="applyProcessing.cached()" />
-                        <TabButtons @apply="currentTab = 'menu'; applyProcessing.preview();" @cancel="currentTab = 'menu'" />
+                            @update="applyProcessing.cached('filter')" />
+                        <TabButtons @apply="currentTab = 'menu'; applyProcessing.preview();"
+                            @cancel="currentTab = 'menu'" />
                     </div>
 
                     <!--Effects-->
-                    <div v-else-if="currentTab == 'effects'">
+                    <div v-else-if="currentTab === 'effects'">
                         <EffectView :effects="effects" :processing-settings="processingSettings"
-                            :apply-processing="applyProcessing.cached()" />
-                        <TabButtons @apply="currentTab = 'menu'; applyProcessing.preview();" @cancel="currentTab = 'menu'" />
+                            @update="applyProcessing.cached('filter')" />
+                        <TabButtons @apply="currentTab = 'menu'; applyProcessing.preview();"
+                            @cancel="currentTab = 'menu'" />
+                    </div>
+
+                    <!--Crop-->
+                    <div v-else-if="currentTab === 'crop'">
+                        <CropComponent @apply="applyProcessing.cached('crop')" />
+                        <TabButtons @apply="currentTab = 'menu'; applyProcessing.preview();"
+                            @cancel="currentTab = 'menu'" />
                     </div>
 
                 </div>
@@ -315,8 +338,17 @@ const next = () => {
         <div class="col-span-9 max-w-9/10 max-h-3/4 basis-250">
             <div class="bg-white rounded-lg border border-solid shadow-md shadow-green-100 p-6">
 
-                <ImageComparison :selected-preview-image="selectedPreviewImage" :selected-preview-index="selectedPreviewIndex" />
-                <div class="flex justify-between pt-6">
+                <ImageComparison :selected-preview-image="selectedPreviewImage"
+                    :selected-preview-index="selectedPreviewIndex">
+                    <template #compare>
+                        <div v-if="currentTab === 'crop'" />
+                    </template>
+                    <template #preview>
+                        <ImageCropping v-if="currentTab === 'crop'" :selected-preview-image="selectedPreviewImage.url"
+                            v-model:crop="crop.crop" />
+                    </template>
+                </ImageComparison>
+                <div v-if="currentTab === 'menu'" class="flex justify-between pt-6">
                     <button @click="() => { currentPage.prevPage; router.push('/upload') }"
                         class="px-6 py-2 bg-green-50 text-green-700 rounded-lg font-medium hover:bg-green-200 cursor-pointer transition-colors">
                         Back to Upload
