@@ -1,5 +1,4 @@
 import './assets/main.css'
-import 'img-comparison-slider/dist/styles.css'
 
 import CropperCanvas from '@cropper/element-canvas';
 import CropperImage from '@cropper/element-image';

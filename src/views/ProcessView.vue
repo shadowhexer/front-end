@@ -368,11 +368,11 @@ const next = () => {
                             v-model:crop="processingSettings.crop" />
                     </template>
                 </ImageComparison>
-                <div v-if="currentTab === 'menu'" class="flex justify-between pt-6">
-                    <button @click="() => { currentPage.prevPage; router.push('/') }"
+                <div v-if="currentTab === 'menu'" class="flex justify-end pt-6">
+                    <!-- <button @click="() => { currentPage.prevPage; router.push('/') }"
                         class="px-6 py-2 bg-green-50 text-green-700 rounded-lg font-medium hover:bg-green-200 cursor-pointer transition-colors">
                         Back to Upload
-                    </button>
+                    </button> -->
                     <button @click="next()"
                         class="px-6 py-2 bg-green-700 text-green-50 rounded-lg font-medium hover:opacity-90 cursor-pointer transition-opacity">
                         Continue to Export
